@@ -189,14 +189,14 @@ async function uploadWebsite() {
     indexContent = replaceTag(
         indexContent,
         /<script\s+defer="defer"\s+src="\/static\/js\/[^"]+"><\/script>/,
-        `<script defer="defer" src="web://${contractAddress}/script.js"></script>`
+        `<script defer="defer" src="wttp://${contractAddress}/script.js"></script>`
     );
 
     // Replace the CSS link
     indexContent = replaceTag(
         indexContent,
         /<link\s+href="\/static\/css\/[^"]+"[^>]*>/,
-        `<link href="web://${contractAddress}/styles.css" rel="stylesheet">`
+        `<link href="wttp://${contractAddress}/styles.css" rel="stylesheet">`
     );
 
     // Write the modified HTML back to the file
