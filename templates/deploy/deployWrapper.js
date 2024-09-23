@@ -49,7 +49,7 @@ async function runDeploy() {
 
     // Run prebuild
     console.log('Running prebuild...');
-    execSync(`node prebuild.js "${newContractAddress}"`, { stdio: 'inherit' });
+    execSync(`node deploy/prebuild.js "${newContractAddress}"`, { stdio: 'inherit' });
     
     // Run build
     console.log('Building the project...');
@@ -57,7 +57,7 @@ async function runDeploy() {
     
     // Run postbuild
     console.log('Running postbuild...');
-    execSync(`node hostV3.js "${newContractAddress}"`, { stdio: 'inherit' });
+    execSync(`node deploy/hostV3.js "${newContractAddress}"`, { stdio: 'inherit' });
 
     // Check final balance
     const finalBalance = await ethers.provider.getBalance(deployer.address);
