@@ -22,10 +22,10 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "prebuild": "node prebuild.js",
-    "postbuild": "node hostV3.js",
-    "deploy-contract": "node deployContract.js",
-    "deploy": "node deployWrapper.js"
+    "prebuild": "node deploy/prebuild.js",
+    "postbuild": "node deploy/hostV3.js",
+    "deploy-contract": "node deploy/deployContract.js",
+    "deploy": "node deploy/deployWrapper.js"
   },
   "eslintConfig": {
     "extends": [
@@ -44,5 +44,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.11"
   }
 }
