@@ -1,12 +1,11 @@
 require('dotenv').config();
 require("@nomicfoundation/hardhat-ethers");
 
-
 console.log("POLYGON_RPC_URL:", process.env.POLYGON_RPC_URL);
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.27", // Update this to match your contract's Solidity version
+  solidity: "0.8.20", // Ensure this matches your contract's Solidity version
   networks: {
     ethereum_mainnet: {
       url: process.env.ETHEREUM_RPC_URL || "",
@@ -17,5 +16,5 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY || ""]
     }
   },
-  defaultNetwork: "polygon_mainnet"  // or "polygon_mainnet" if that's your intention
+  defaultNetwork: "polygon_mainnet"  // Ensure this is set to the correct network
 };

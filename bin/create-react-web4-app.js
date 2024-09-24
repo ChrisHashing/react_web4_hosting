@@ -16,7 +16,7 @@ console.log(`Creating a new React Web4 app: ${projectName}`);
 // Create React App
 execSync(`npx create-react-app ${projectName}`, { stdio: 'inherit' });
 
-execSync(`cd ${projectName} && npx hardhat`, { stdio: 'inherit' });
+execSync(`cd ${projectName} && npx hardhat init`, { stdio: 'inherit' });
 
 // Copy template files
 const templateDir = path.join(__dirname, '..', 'templates');

@@ -18,12 +18,6 @@ async function runDeploy() {
     const network = await ethers.provider.getNetwork();
     console.log(`Deploying to network: ${network.name} (chainId: ${network.chainId})`);
 
-    console.log("network.chainId:", network.chainId);
-    // Ensure we're on Polygon mainnet
-    if (network.chainId !== 137n) {
-      throw new Error(`Not deploying to Polygon mainnet. Current network: ${network.name} (chainId: ${network.chainId})`);
-    }
-
     // Get the deployer account
     const [deployer] = await ethers.getSigners();
     
@@ -33,7 +27,7 @@ async function runDeploy() {
 
     // Deploy contract using Hardhat
     console.log('Deploying contract...');
-    const WebsiteContract = await ethers.getContractFactory("WebsiteContract");
+    const WebsiteContract = await ethers.getContractFactory("MyWebContract");
     const contract = await WebsiteContract.deploy();
     await contract.waitForDeployment();
 
@@ -43,9 +37,6 @@ async function runDeploy() {
     if (!ethers.isAddress(newContractAddress)) {
       throw new Error(`Invalid contract address: ${newContractAddress}`);
     }
-
-    // Update process.env with the new contract address
-    // process.env.CONTRACT_ADDRESS = newContractAddress;
 
     // Run prebuild
     console.log('Running prebuild...');
