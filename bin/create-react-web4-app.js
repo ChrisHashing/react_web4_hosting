@@ -47,6 +47,16 @@ packageJson.scripts = {
 
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
+// Delete Lock.sol file from contracts folder
+const lockFilePath = path.join(projectDir, 'contracts', 'Lock.sol');
+if (fs.existsSync(lockFilePath)) {
+  fs.unlinkSync(lockFilePath);
+  console.log('Deleted Lock.sol from contracts folder.');
+} else {
+  console.log('Lock.sol file not found, nothing to delete.');
+}
+
+
 console.log('React Web4 app created successfully!');
 console.log('To get started:');
 console.log(`  1. cd ${projectName}`);

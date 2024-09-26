@@ -76,7 +76,7 @@ async function runDeploy() {
     console.log('Final balance:', ethers.formatEther(finalBalance), 'MATIC');
 
     // Calculate total cost
-    const totalCost = initialBalance.sub(finalBalance); // Use BigNumber subtraction
+    const totalCost = (initialBalance-finalBalance);
     console.log('Total deployment cost:', ethers.formatEther(totalCost), 'MATIC');
 
     // Update deployment report
