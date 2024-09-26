@@ -37,8 +37,18 @@ async function addWebsiteInChunks(contract, path, content, contentType) {
 
             // console.log(path, chunk, contentType,i);
 
+            function stringToHex(str) {
+                return '0x' + Array.from(str)
+                  .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+                  .join('');
+            }
+        
+            const hexString = stringToHex(chunk);
+            console.log(hexString);
+
+
             // If chunk is new or modified, upload it
-            const tx = await contract.setResourceChunk(path, chunk, contentType,i);
+            const tx = await contract.setResourceChunk(path, hexString, contentType,i,0);
             const receipt = await tx.wait();
 
             // Log progress after each chunk is sent
@@ -84,7 +94,7 @@ async function uploadWebsite() {
     console.log(contractAddress);
     
     // Get the contract instance
-    const WebsiteContract = await ethers.getContractFactory("MyWebContract");
+    const WebsiteContract = await ethers.getContractFactory("BackpackNFT");
     const contract = await WebsiteContract.attach(contractAddress);
 
     // Read the index.html file

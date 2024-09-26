@@ -6,11 +6,16 @@ const axios = require('axios');
 const FormData = require('form-data');
 const deployReport = require('./deployReport');
 const { checkAndCorrectOrder } = require('./codeFormatter');
+const { ethers } = require("hardhat");
 
 const pinataApiKey = process.env.PINATA_API_KEY;
 const pinataSecretApiKey = process.env.PINATA_SECRET_API_KEY;
 const pinataGateway = process.env.PINATA_GATEWAY;
+// const pinataGateway = process.env.PINATA_GATEWAY;
+// const contractAddress = process.argv[2] || process.env.CONTRACT_ADDRESS;
 const contractAddress = process.argv[2] || process.env.CONTRACT_ADDRESS;
+const CHUNK_SIZE = 14576; 
+
 
 async function uploadToPinata(filePath) {
   const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
@@ -36,7 +41,69 @@ async function uploadToPinata(filePath) {
   }
 }
 
+async function addWebsiteInChunks(contract, path, content, contentType) {
+
+
+
+  try {
+    console.log("Content.length", content.length);
+    console.log("content",content);
+    const totalChunks = Math.ceil(content.length / CHUNK_SIZE);
+    console.log(`Total chunks to upload for ${contentType}: ${totalChunks}`);
+    
+
+    // Get the total chunks already uploaded to compare
+    // const existingTotalChunks = await contract.getTotalChunks(path);
+    // console.log(existingTotalChunks + "existingTotalChunks");
+
+    for (let i = 0; i < totalChunks; i++) {
+      const chunk = content.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+
+      // Check if chunk already exists before uploading
+      // if (i < existingTotalChunks) {
+      //     const [existingChunk, existingContentType] = await contract.getResourceChunk(path, i);
+      //     if (existingChunk === chunk && existingContentType === contentType) {
+      //         console.log(`Chunk ${i + 1}/${totalChunks} is identical, skipping upload.`);
+      //         continue; // Skip if the chunk is already the same
+      //     }
+      // }
+
+      function stringToHex(str) {
+        return '0x' + Array.from(str)
+          .map(c => c.charCodeAt(0).toString(16).padStart(2, '0'))
+          .join('');
+    }
+
+    const hexString = stringToHex(chunk);
+    console.log(hexString);
+    
+
+      console.log(path);
+      console.log(contentType);
+      console.log(i);
+
+      const chunkIndex = i; // Use i directly for existing chunks
+      console.log(`Uploading chunk ${i + 1}/${totalChunks} with index ${chunkIndex}`);
+
+      // If this is the first chunk, it should be added at index 0
+      const tx = await contract.setResourceChunk(path, hexString, contentType, chunkIndex, 0);
+      const receipt = await tx.wait();
+
+      // Log progress after each chunk is sent
+      console.log(`Chunk ${i + 1}/${totalChunks} of ${contentType} uploaded successfully. Transaction hash: ${receipt.transactionHash}`);
+    }
+
+    console.log(`${contentType} added successfully in chunks`);
+  } catch (error) {
+    console.error(`Error adding ${contentType}:`, error);
+  }
+}
+
 async function processMatch(variableName, importPath, filePath) {
+
+  const WebsiteContract = await ethers.getContractFactory("BackpackNFT");
+  const contract = await WebsiteContract.attach(contractAddress);
+
   // Ignore CSS files
   if (importPath.endsWith('.css') || importPath.endsWith('.scss') || importPath.endsWith('.sass')) {
     return null;
@@ -44,7 +111,7 @@ async function processMatch(variableName, importPath, filePath) {
 
   if (!importPath.startsWith('http') && !importPath.startsWith('data:')) {
     let absolutePath = path.resolve(path.dirname(filePath), importPath);
-    
+
     // Check if the file exists, if not, try prepending 'src/'
     if (!fs.existsSync(absolutePath)) {
       absolutePath = path.resolve('src', importPath);
@@ -61,8 +128,55 @@ async function processMatch(variableName, importPath, filePath) {
 
     if (fs.existsSync(absolutePath)) {
       const ipfsHash = await uploadToPinata(absolutePath);
+      const relativePath = path.relative(path.dirname(filePath), absolutePath);
       const ipfsUrl = `${pinataGateway}/ipfs/${ipfsHash}`;
-      return `const ${variableName} = "${ipfsUrl}";`;
+
+
+      // Create the data object
+      const data = {
+        link: ipfsUrl,
+        type: 'image/png' // Replace with the actual file type if needed
+      };
+      
+
+   
+  
+      const ext = path.extname(relativePath).toLowerCase();
+
+      let contentType;
+
+      switch (ext) {
+        case '.png':
+            contentType = 'image/png';
+            break;
+        case '.jpg':
+        case '.jpeg':
+            contentType = 'image/jpeg';
+            break;
+        case '.gif':
+            contentType = 'image/gif';
+            break;
+        case '.svg':
+            contentType = 'image/svg+xml';
+            break;
+        case '.pdf':
+            contentType = 'application/pdf';
+            break;
+        case '.txt':
+          contentType = 'text/plain';
+        // Add more cases as needed for other file types
+        default:
+            contentType = 'text/plain'; // Fallback for unknown types
+    }
+
+    data.type= contentType;
+    const finalData = JSON.stringify(data);
+
+    console.log(relativePath, finalData);
+      // Add to the contract
+      await addWebsiteInChunks(contract,'/' + relativePath, finalData, "ipfs");
+
+      return `const ${variableName} = "wttp://${contractAddress}/${relativePath}";`;
     }
   }
   return null;
@@ -72,7 +186,7 @@ async function processFile(filePath) {
   let content = fs.readFileSync(filePath, 'utf8');
   const importRegex = /import\s+(\w+)\s+from\s+['"](.+)['"];?/g;
   const constRegex = /const\s+(\w+)\s*=\s*(['"])(.+)\2;?/g;
-  
+
   let match;
   const replacements = [];
 
@@ -120,6 +234,7 @@ async function processDirectory(directory) {
 
 async function main() {
   try {
+    console.log("Starting prebuild process..."); // A
     await processDirectory('./src');
     console.log('Prebuild process completed successfully.');
   } catch (error) {
