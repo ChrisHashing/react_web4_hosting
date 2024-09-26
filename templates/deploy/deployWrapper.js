@@ -61,7 +61,7 @@ async function runDeploy() {
 
     // Run prebuild
     console.log('Running prebuild...');
-    execSync(`node deploy/prebuild.js "${deployedAddress}"`, { stdio: 'inherit' });
+    execSync(`node deploy/preBuild.js "${deployedAddress}"`, { stdio: 'inherit' });
     
     // Run build
     console.log('Building the project...');
@@ -69,7 +69,7 @@ async function runDeploy() {
     
     // Run postbuild
     console.log('Running postbuild...');
-    execSync(`node deploy/hostV3.js "${deployedAddress}"`, { stdio: 'inherit' });
+    execSync(`node deploy/postBuild.js "${deployedAddress}"`, { stdio: 'inherit' });
 
     // Check final balance
     const finalBalance = await ethers.provider.getBalance(deployer.address);

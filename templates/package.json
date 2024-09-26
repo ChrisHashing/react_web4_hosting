@@ -15,7 +15,8 @@
     "react-scripts": "5.0.1",
     "solc": "^0.8.27",
     "web-vitals": "^2.1.4",
-    "web3": "^4.12.1"
+    "web3": "^4.12.1",
+    "@tw3/solidity": "^0.0.13"
   },
   "scripts": {
     "start": "react-scripts start",
