@@ -1,8 +1,52 @@
 const hre = require("hardhat");
-const { ethers } = require("hardhat"); // Add this line
+const { ethers } = require("hardhat");
 const { execSync } = require('child_process');
 const deployReport = require('./deployReport');
-require('dotenv').config();
+const inquirer = require('inquirer');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+// Function to update the .env file
+function updateEnvFile(contractAddress, network) {
+  const envFilePath = './.env'; // Path to your .env file
+  dotenv.config({ path: envFilePath }); // Load existing env variables
+
+  // Read current .env content
+  let envVars = fs.readFileSync(envFilePath, 'utf8');
+
+  // Set or update CONTRACT_ADDRESS and NETWORK_NAME variables
+  envVars = envVars.replace(/CONTRACT_ADDRESS=.*/, `CONTRACT_ADDRESS=${contractAddress}`);
+  envVars = envVars.replace(/NETWORK_NAME=.*/, `NETWORK_NAME=${network}`);
+
+  // If they don't exist, append them
+  if (!/CONTRACT_ADDRESS=/.test(envVars)) {
+    envVars += `\nCONTRACT_ADDRESS=${contractAddress}`;
+  }
+  if (!/NETWORK_NAME=/.test(envVars)) {
+    envVars += `\nNETWORK_NAME=${network}`;
+  }
+
+  // Write updated env variables back to .env file
+  fs.writeFileSync(envFilePath, envVars);
+
+   // Reload the environment variables from .env file
+   dotenv.config({ path: envFilePath });
+}
+
+async function promptUserForNetwork() {
+  const networkChoices = Object.keys(hre.config.networks); // Get available networks from hardhat.config
+  const questions = [
+    {
+      type: 'list',
+      name: 'selectedNetwork',
+      message: 'Please select a network to deploy to:',
+      choices: networkChoices,
+    },
+  ];
+
+  const answers = await inquirer.prompt(questions);
+  return answers.selectedNetwork; // Return the selected network
+}
 
 async function runDeploy() {
   try {
@@ -12,80 +56,47 @@ async function runDeploy() {
     console.log('Compiling contracts...');
     execSync('npx hardhat compile', { stdio: 'inherit' });
 
-    console.log('Starting deployment process...');
-    
-    // Get the network
-    const network = await ethers.provider.getNetwork();
-    console.log(`Deploying to network: ${network.name} (chainId: ${network.chainId})`);
+    // Prompt user to select a network
+    const selectedNetwork = await promptUserForNetwork(); // Get user-selected network
+    console.log(`Selected network: ${selectedNetwork}`);
 
-    // Get the deployer account
-    const [deployer] = await hre.ethers.getSigners();
-    
-    // Check initial balance
-    const initialBalance = await ethers.provider.getBalance(deployer.address);
-    console.log('Initial balance:', ethers.formatEther(initialBalance), 'MATIC');
+    // Deploy the contract using the contractDeployer script
+    console.log('Deploying contract...');
+    const deployCommand = `npx hardhat run ./scripts/deploy.js --network ${selectedNetwork}`;
+    const output = execSync(deployCommand, { stdio: 'pipe' }).toString();
+    console.log(output); // Output the full log from the deploy script for debugging purposes
 
-    // Get the BackpackFactory contract instance
-    const BackpackFactory = await hre.ethers.getContractAt("BackpackFactory", "0x02B2D7FFa3153226fD30043B244CdB4fF8B426A1");
-
-    const tx = await BackpackFactory.deployWCT(); // Call the deployWCT function
-
-    const receipt = await tx.wait(); // Wait for the transaction to be mined
-
-    console.log("Transaction mined, looking for WCTDeployed event...", receipt.logs);
-
-    // Loop through logs to find the WCTDeployed event
-    let deployedAddress = '';
-    for (const log of receipt.logs) {
-      try {
-        const parsedLog = BackpackFactory.interface.parseLog(log);
-        
-        // Check if the event is the WCTDeployed event
-        if (parsedLog.name === 'WCTDeployed') {
-          deployedAddress = parsedLog.args[0];  // Get the address from the event args
-          console.log('Contract deployed at:', deployedAddress);
-          break;  // Exit the loop once we find the event
-        }
-      } catch (error) {
-        // Continue if the log can't be parsed
-        continue;
-      }
+    // Extract the deployed contract address from output
+    const deployedAddressMatch = output.match(/Contract deployed at address: (0x[a-fA-F0-9]{40})/);
+    if (!deployedAddressMatch || deployedAddressMatch.length < 2) {
+      throw new Error('Failed to extract deployed contract address from deployContract output.');
     }
+    const deployedAddress = deployedAddressMatch[1]; // Extract the deployed address
+    console.log(`Contract deployed at: ${deployedAddress}`);
 
-    if (!deployedAddress) {
-      console.error('No WCTDeployed event found in the logs.');
-    }
+    // Update the .env file with contract address and network
+    console.log('Updating .env file...');
+    updateEnvFile(deployedAddress, selectedNetwork);
 
-    // Use the deployedAddress for further processing
-    const contract = await hre.ethers.getContractAt("BackpackNFT", deployedAddress); // Ensure this matches the contract name
+    // Run prebuild with Hardhat
+    console.log('Running prebuild script via Hardhat...');
+    execSync(`cross-env CONTRACT_ADDRESS=${deployedAddress} npx hardhat run ./scripts/preBuild.js --network ${selectedNetwork}`, { stdio: 'inherit' });
 
-    // Run prebuild
-    console.log('Running prebuild...');
-    execSync(`node deploy/preBuild.js "${deployedAddress}"`, { stdio: 'inherit' });
-    
     // Run build
     console.log('Building the project...');
     execSync('react-scripts build', { stdio: 'inherit' });
+
+    // Run postbuild with Hardhat
+    console.log('Running postbuild script via Hardhat...');
+    execSync(`cross-env CONTRACT_ADDRESS=${deployedAddress} npx hardhat run ./scripts/postBuild.js --network ${selectedNetwork}`, { stdio: 'inherit' });
+
     
-    // Run postbuild
-    console.log('Running postbuild...');
-    execSync(`node deploy/postBuild.js "${deployedAddress}"`, { stdio: 'inherit' });
-
-    // Check final balance
-    const finalBalance = await ethers.provider.getBalance(deployer.address);
-    console.log('Final balance:', ethers.formatEther(finalBalance), 'MATIC');
-
-    // Calculate total cost
-    const totalCost = (initialBalance-finalBalance);
-    console.log('Total deployment cost:', ethers.formatEther(totalCost), 'MATIC');
-
     // Update deployment report
-    deployReport.setDeploymentCost(ethers.formatEther(totalCost));
     deployReport.setContractAddress(deployedAddress);
-    
+
     // Generate and save the report
     await deployReport.generateReport();
-    
+
     console.log('Deployment process completed successfully.');
   } catch (error) {
     console.error('An error occurred during the deployment process:', error);
